@@ -309,7 +309,7 @@ async function analyzeWithAI(patientData, prescriptionText, uploadedFileInfo, fi
         return result.response.text();
     } catch (error) {
         console.error('AI Analysis Error:', error);
-        return "AI analysis is currently unavailable. Please try again later.";
+        return `AI Analysis Failed: ${error.message} (Check Server Logs/API Key)`;
     }
 }
 
@@ -844,17 +844,17 @@ function getFallbackMedications(clinicalNotes) {
     return medications;
 }
 
-// Only start server if run directly (not via Vercel/serverless)
-if (require.main === module) {
+// Export for Vercel
+if (process.env.VERCEL) {
+    module.exports = app;
+} else {
+    // Only listen on port if NOT in Vercel
     app.listen(port, () => {
         console.log(`Medical Assistant Server running at http://localhost:${port}`);
-        // Create necessary directories
+        // Create necessary directories (Local only)
         if (!fs.existsSync('uploads')) fs.mkdirSync('uploads', { recursive: true });
         if (!fs.existsSync('bills')) fs.mkdirSync('bills', { recursive: true });
         console.log('Uploads directory:', fs.existsSync('uploads') ? 'Created' : 'Failed');
         console.log('Bills directory:', fs.existsSync('bills') ? 'Created' : 'Failed');
     });
 }
-
-// Export for Vercel
-module.exports = app;
