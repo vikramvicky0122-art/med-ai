@@ -767,20 +767,35 @@ app.get('/bills/:filename', (req, res) => {
     }
 });
 
-// Test upload endpoint
+// Test upload endpoint with Environment Diagnostics
 app.get('/api/test-upload', (req, res) => {
     const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    // Use explicit /tmp for Vercel, resolved path for local
     const uploadsDir = isServerless ? '/tmp' : path.join(process.cwd(), 'uploads');
     const billsDir = isServerless ? '/tmp' : path.join(process.cwd(), 'bills');
-    const uploadsExists = fs.existsSync(uploadsDir);
-    const billsExists = fs.existsSync(billsDir);
+
+    // Check writability (try to write a small test file)
+    let writeStatus = 'Unknown';
+    try {
+        const testFile = path.join(uploadsDir, 'write-test.txt');
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+        writeStatus = 'Writable';
+    } catch (e) {
+        writeStatus = `Failed: ${e.message}`;
+    }
 
     res.json({
         success: true,
-        uploadsDirectory: uploadsExists ? 'Exists' : 'Missing',
-        billsDirectory: billsExists ? 'Exists' : 'Missing',
-        uploadsPath: uploadsDir,
-        billsPath: billsDir
+        environment: isServerless ? 'Serverless/Vercel' : 'Local/Standard',
+        apiKey: process.env.GEMINI_API_KEY ? 'Present' : 'MISSING (Check Vercel Env Vars)',
+        directories: {
+            uploads: fs.existsSync(uploadsDir) ? 'Exists' : 'Created/Missing',
+            bills: fs.existsSync(billsDir) ? 'Exists' : 'Created/Missing',
+            path: uploadsDir,
+            writeCheck: writeStatus
+        }
     });
 });
 
