@@ -25,9 +25,12 @@ app.get('/', (req, res) => {
 // Enhanced Multer configuration (ONLY ONE DEFINITION)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadsDir = path.join(__dirname, 'uploads');
-        // Ensure uploads directory exists
-        if (!fs.existsSync(uploadsDir)) {
+        // Use /tmp for serverless environments (Vercel), otherwise use local uploads folder
+        const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+        const uploadsDir = isServerless ? '/tmp' : path.join(process.cwd(), 'uploads');
+
+        // Ensure uploads directory exists (only needed for local, /tmp always exists)
+        if (!isServerless && !fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
         }
         cb(null, uploadsDir);
