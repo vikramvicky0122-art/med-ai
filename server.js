@@ -17,6 +17,11 @@ const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 app.use(express.json());
 app.use(express.static('public'));
 
+// Explicitly serve index.html for root path to fix Vercel deployment
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Enhanced Multer configuration (ONLY ONE DEFINITION)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
