@@ -512,11 +512,14 @@ function generatePDFBill(patientData, medications, icd10Codes, aiSuggestions, to
         try {
             const doc = new PDFDocument({ margin: 50 });
             const filename = `bill-${Date.now()}.pdf`;
-            const billsDir = path.join(__dirname, 'bills');
+
+            // Use /tmp for serverless environments (Vercel)
+            const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+            const billsDir = isServerless ? '/tmp' : path.join(process.cwd(), 'bills');
             const filepath = path.join(billsDir, filename);
 
-            // Ensure bills directory exists
-            if (!fs.existsSync(billsDir)) {
+            // Ensure bills directory exists (only needed for local)
+            if (!isServerless && !fs.existsSync(billsDir)) {
                 fs.mkdirSync(billsDir, { recursive: true });
             }
 
@@ -710,14 +713,36 @@ app.post('/api/generate-bill', async (req, res) => {
     }
 });
 
-// Serve static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/bills', express.static(path.join(__dirname, 'bills')));
+// Serve static files dynamically to support Vercel /tmp
+app.get('/uploads/:filename', (req, res) => {
+    const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    const directory = isServerless ? '/tmp' : path.join(process.cwd(), 'uploads');
+    const filepath = path.join(directory, req.params.filename);
+
+    if (fs.existsSync(filepath)) {
+        res.sendFile(filepath);
+    } else {
+        res.status(404).send('File not found');
+    }
+});
+
+app.get('/bills/:filename', (req, res) => {
+    const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    const directory = isServerless ? '/tmp' : path.join(process.cwd(), 'bills');
+    const filepath = path.join(directory, req.params.filename);
+
+    if (fs.existsSync(filepath)) {
+        res.sendFile(filepath);
+    } else {
+        res.status(404).send('Bill not found');
+    }
+});
 
 // Test upload endpoint
 app.get('/api/test-upload', (req, res) => {
-    const uploadsDir = path.join(__dirname, 'uploads');
-    const billsDir = path.join(__dirname, 'bills');
+    const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    const uploadsDir = isServerless ? '/tmp' : path.join(process.cwd(), 'uploads');
+    const billsDir = isServerless ? '/tmp' : path.join(process.cwd(), 'bills');
     const uploadsExists = fs.existsSync(uploadsDir);
     const billsExists = fs.existsSync(billsDir);
 
