@@ -260,30 +260,52 @@ async function suggestMedications(clinicalNotes) {
 
 // Enhanced AI analysis function to include name
 // Enhanced AI analysis function to include name
-async function analyzeWithAI(patientData, prescriptionText, uploadedFileInfo) {
+// Enhanced AI analysis function with Multimodal support
+async function analyzeWithAI(patientData, prescriptionText, uploadedFileInfo, filePath, mimeType) {
     try {
-        const prompt = `
-        You are a medical AI assistant. Analyze the following patient information and provide:
+        const parts = [];
 
-        PATIENT INFORMATION:
-        - Name: ${patientData.name}
-        - Gender: ${patientData.gender}
-        - Clinical Notes: ${patientData.clinicalNotes}
-        - Current Medications: ${patientData.currentMeds}
-        - Prescription Context: ${prescriptionText}
-        - Uploaded Document: ${uploadedFileInfo}
+        // Add text prompt
+        parts.push({
+            text: `
+            You are a medical AI assistant. Analyze the following patient information and the attached medical document (prescription/report):
 
-        Please provide:
-        1. Medication suggestions based on the condition
-        2. Potential drug interactions to watch for
-        3. Additional treatment recommendations
-        4. Follow-up advice
-        5. ICD-10 coding suggestions
+            PATIENT INFORMATION:
+            - Name: ${patientData.name}
+            - Gender: ${patientData.gender}
+            - Clinical Notes: ${patientData.clinicalNotes}
+            - Current Medications: ${patientData.currentMeds}
+            
+            Please analyze the attached document and provide:
+            1. Medication suggestions/verification
+            2. Potential drug interactions
+            3. Treatment recommendations
+            4. ICD-10 coding suggestions
 
-        Format your response as structured medical advice.
-        `;
+            Format your response as structured medical advice.
+            `
+        });
 
-        const result = await model.generateContent(prompt);
+        // Add image/PDF data if available
+        if (filePath && mimeType) {
+            try {
+                // Read file as base64
+                const fileData = fs.readFileSync(filePath);
+                const base64Data = fileData.toString('base64');
+
+                parts.push({
+                    inlineData: {
+                        data: base64Data,
+                        mimeType: mimeType
+                    }
+                });
+            } catch (readError) {
+                console.error("Error reading file for AI:", readError);
+                parts.push({ text: `[Error reading attached file: ${readError.message}]` });
+            }
+        }
+
+        const result = await model.generateContent(parts);
         return result.response.text();
     } catch (error) {
         console.error('AI Analysis Error:', error);
@@ -465,7 +487,14 @@ app.post('/api/upload-prescription', upload.single('prescription'), async (req, 
         // Analyze with AI
         let aiAnalysis = "AI analysis is currently unavailable.";
         try {
-            aiAnalysis = await analyzeWithAI(patientData, prescriptionText, req.file.filename);
+            // Pass file path and mimetype for real AI analysis
+            aiAnalysis = await analyzeWithAI(
+                patientData,
+                prescriptionText,
+                req.file.filename,
+                req.file.path,
+                req.file.mimetype
+            );
         } catch (aiError) {
             console.error('AI analysis failed:', aiError);
             aiAnalysis = "AI analysis skipped due to technical issues.";
