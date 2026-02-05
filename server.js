@@ -15,7 +15,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
 // Middleware
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Explicitly serve index.html for root path to fix Vercel deployment
 app.get('/', (req, res) => {
